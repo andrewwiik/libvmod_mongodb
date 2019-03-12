@@ -1,0 +1,7 @@
+{
+	"files.associations": {
+		"hosts": "shellscript",
+		"limits": "c",
+		"type_traits": "c"
+	}
+}

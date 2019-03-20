@@ -294,8 +294,7 @@ vmod_aggregate(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name, VCL_
 			 return (NULL);
 	}
 
-	mongoc_cursor_t *cursor = mongoc_collection_aggregate (
-      collection, MONGOC_QUERY_NONE, query, NULL, NULL)
+	mongoc_cursor_t *cursor = mongoc_collection_aggregate (collection, MONGOC_QUERY_NONE, query, NULL, NULL);
 
 	const bson_t *doc;
 	if (mongoc_cursor_next (cursor, &doc)) {

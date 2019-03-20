@@ -2,4 +2,5 @@ $Module mongodb 3 mongodb VMOD
 $Event init_function
 $Function VOID db(PRIV_VCL, STRING)
 $Function STRING find(PRIV_VCL, STRING, STRING)
+$Function STRING aggregate(PRIV_VCL, STRING, STRING)
 $Function BOOL findAndUpdate(PRIV_VCL, STRING, STRING, STRING)

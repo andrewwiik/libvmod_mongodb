@@ -258,3 +258,62 @@ vmod_findAndUpdate(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name, 
 	free_client(ctx, settings, mc);
 	return result;
 }
+
+VCL_STRING
+vmod_aggregate(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name, VCL_STRING query_string)
+{
+
+	mongoc_client_t *mc;
+	struct vmod_mongodb_vcl_settings *settings;
+	bson_t *query;
+	char *p, *result;
+
+	VSL(SLT_VCL_Log, 0, "Could not connect");
+
+	CHECK_OBJ_NOTNULL(ctx, VRT_CTX_MAGIC);
+	CAST_OBJ_NOTNULL(settings, priv->priv, VMOD_MDB_SETTINGS_MAGIC);
+	mc = get_client(ctx, settings);
+	if (!mc) {
+		VSL(SLT_VCL_Log, 0, "Could not get DB Conection");
+		return (NULL);
+	}
+
+	query = bson_new_from_json((const uint8_t *)query_string, -1, NULL);
+	if (!query) {
+		VSL(SLT_VCL_Log, 0, "Could not connect not query");
+		free_client(ctx, settings, mc);
+		return (NULL);
+
+	}
+
+	mongoc_collection_t *collection = mongoc_client_get_collection (mc, settings->dbname, collection_name);
+	if (!collection) {
+			VSL(SLT_VCL_Log, 0, "Could not get collection");
+			bson_destroy (query);
+			free_client(ctx, settings, mc);
+			 return (NULL);
+	}
+
+	mongoc_cursor_t *cursor = mongoc_collection_aggregate (
+      collection, MONGOC_QUERY_NONE, query, NULL, NULL)
+
+	const bson_t *doc;
+	if (mongoc_cursor_next (cursor, &doc)) {
+		result = bson_as_canonical_extended_json (doc, NULL);
+		bson_destroy (query);
+		mongoc_cursor_destroy(cursor);
+		mongoc_collection_destroy (collection);
+		free_client(ctx, settings, mc);
+		p = WS_Copy(ctx->ws, result, -1);
+		bson_free (result);
+		return (p);
+	}
+
+	VSL(SLT_VCL_Log, 0, "Could not get result");
+	bson_destroy (query);
+	mongoc_cursor_destroy(cursor);
+	mongoc_collection_destroy (collection);
+	free_client(ctx, settings, mc);
+
+	return NULL;
+}

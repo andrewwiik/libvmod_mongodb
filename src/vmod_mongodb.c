@@ -75,15 +75,9 @@ static mongoc_client_t *
 get_client(const struct vrt_ctx *ctx, struct vmod_mongodb_vcl_settings *settings)
 {
 
-	// openlog ("varnish", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
-
-	// syslog (LOG_PERROR, "Program started by User");
-	// syslog (LOG_INFO, "A tree falls in a forest");
-	// closelog ();
-
 	mongoc_client_t *mc = NULL;
-
-	//CHECK_OBJ_NOTNULL(settings, VMOD_MDB_SETTINGS_MAGIC);
+	CHECK_OBJ_NOTNULL(settings, VMOD_MDB_SETTINGS_MAGIC);
+	
 	if (!settings->pool) {
 		VSL(SLT_VCL_Log, 0, "Could not connect");
 		// VRT_handling(ctx, VCL_RET_FAIL);
@@ -128,26 +122,18 @@ vmod_db(VRT_CTX, struct vmod_priv *priv, VCL_STRING server_url)
 	CAST_OBJ_NOTNULL(settings, priv->priv, VMOD_MDB_SETTINGS_MAGIC);
 	AZ(settings->pool);
 
-	size_t pool_len = strlen(server_url);
-	char *pool_str = malloc(pool_len + 1);
+	// size_t pool_len = strlen(server_url);
+	// char *pool_str = malloc(pool_len + 1);
 
-	strcpy(pool_str, server_url);
-	settings->uri = mongoc_uri_new(pool_str);
+	// strcpy(pool_str, server_url);
+	settings->uri = mongoc_uri_new(server_url);
 	settings->pool = mongoc_client_pool_new(settings->uri);
 	mongoc_client_pool_set_error_api(settings->pool, 2);
 	settings->dbname = mongoc_uri_get_database(settings->uri);
-	VSL(SLT_VCL_Log, 0, "Could not connect");
-	free(pool_str);
-	return;
 
-	mongoc_client_t *mc = get_client(ctx, settings);
+	VSL(SLT_VCL_Log, 0, "Could not connect");
+	// free(pool_str);
 	return;
-	if (mc) {
-		VSL(SLT_VCL_Log, 0, "Could not connect");
-	//	free_client(ctx, settings, mc);
-	} else {
-		VSL(SLT_VCL_Log, 0, "Could not connect");
-	}
 }
 
 VCL_STRING
@@ -208,7 +194,7 @@ vmod_find(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name, VCL_STRIN
 }
 
 VCL_BOOL
-vmod_findAndUpdate(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name, VCL_STRING query_string, VCL_STRING update_string)
+vmod_find_and_update(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name, VCL_STRING query_string, VCL_STRING update_string)
 {
 
 	mongoc_client_t *mc;
@@ -280,7 +266,7 @@ vmod_aggregate(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name, VCL_
 
 	query = bson_new_from_json((const uint8_t *)query_string, -1, NULL);
 	if (!query) {
-		VSL(SLT_VCL_Log, 0, "Could not connect not query");
+		VSL(SLT_VCL_Log, 0, "Could not connect to query");
 		free_client(ctx, settings, mc);
 		return (NULL);
 

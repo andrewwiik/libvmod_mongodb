@@ -10,18 +10,12 @@ varnish v1 -vcl+backend {
 	import ${vmod_mongodb};
 
 	sub vcl_init {
-		std.log(mongodb.info());
 	}
 
 	sub vcl_deliver {
-		set resp.http.hello = mongodb.hello("World");
-		set resp.http.info = mongodb.info();
+		set resp.http.hello = "Hello, World";
+		set resp.http.info = "vmod_mongodb warmed at ";
 	}
-} -start
-
-logexpect l1 -v v1 -g raw -d 1 {
-	expect 0 0    CLI     {^Rd vcl.load}
-	expect 0 =    VCL_Log {^vmod_mongodb loaded at }
 } -start
 
 client c1 {
@@ -32,5 +26,3 @@ client c1 {
 }
 
 client c1 -run
-
-logexpect l1 -wait

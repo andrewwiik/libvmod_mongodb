@@ -41,7 +41,6 @@ struct vmod_mongodb_vcl_settings {
 	mongoc_client_pool_t *pool;
 	mongoc_uri_t *uri;
 	const char *dbname;
-	bool wasStarted
 };
 
 static void
@@ -120,17 +119,17 @@ vmod_db(VRT_CTX, struct vmod_priv *priv, VCL_STRING server_url)
 	struct vmod_mongodb_vcl_settings *settings;
 
 	if (ctx->method != VCL_MET_INIT) {
-		VRT_fail(ctx,
-		    "db() may only be called from vcl_init");
+		VRT_fail(ctx, "db() may only be called from vcl_init");
 		return;
-	}
-
-	if (settings->pool) {
-		"db() may only be called once");
 	}
 
 	CHECK_OBJ_NOTNULL(ctx, VRT_CTX_MAGIC);
 	CAST_OBJ_NOTNULL(settings, priv->priv, VMOD_MDB_SETTINGS_MAGIC);
+
+	if (settings->pool) {
+		VRT_fail(ctx, "db() may only be called once");
+		return;
+	}
 	AZ(settings->pool);
 
 	size_t pool_len = strlen(server_url);

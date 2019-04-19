@@ -1,3 +1,8 @@
+#ifndef HELPERS_H_INCLUDED
+#define HELPERS_H_INCLUDED
+
+#include <syslog.h>
+
 #define MONGO_INFO_LOG(ctx, fmt, ...) \
 	do { \
 		const struct vrt_ctx *_ctx = ctx; \
@@ -8,3 +13,5 @@
 		VSLb(_ctx->vsl, SLT_VCL_Log, _buffer, ##__VA_ARGS__); \
 		free(_buffer); \
 	} while (0)
+
+#endif

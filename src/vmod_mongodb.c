@@ -1,5 +1,9 @@
 #include "config.h"
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
+
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -11,7 +15,6 @@
 #include <mongoc/mongoc.h>
 
 #include "cache/cache.h"
-#include "helpers.h"
 
 #include <vcl.h>
 
@@ -24,6 +27,7 @@
 #endif
 
 #include "vcc_mongodb_if.h"
+#include "helpers.h"
 
 const size_t infosz = 64;
 char	     *info;

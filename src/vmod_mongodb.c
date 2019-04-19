@@ -11,6 +11,7 @@
 #include <mongoc/mongoc.h>
 
 #include "cache/cache.h"
+#include "helpers.h"
 
 #include <vcl.h>
 
@@ -40,6 +41,7 @@ struct vmod_mongodb_vcl_settings {
 	mongoc_client_pool_t *pool;
 	mongoc_uri_t *uri;
 	const char *dbname;
+	bool wasStarted
 };
 
 static void
@@ -79,15 +81,14 @@ get_client(const struct vrt_ctx *ctx, struct vmod_mongodb_vcl_settings *settings
 	CHECK_OBJ_NOTNULL(settings, VMOD_MDB_SETTINGS_MAGIC);
 	
 	if (!settings->pool) {
-		VSL(SLT_VCL_Log, 0, "Could not connect");
+		MONGO_INFO_LOG(ctx, "Could not connect to database");
 		// VRT_handling(ctx, VCL_RET_FAIL);
 		return (NULL);
 	}
-	VSL(SLT_VCL_Log, 0, "Could not connect");
 
 	mc = mongoc_client_pool_pop (settings->pool);
 	if (!mc) {
-		VSL(SLT_VCL_Log, 0, "Could not connect");
+		MONGO_INFO_LOG(ctx, "Could not get connection from pool for database");
 		// VRT_handling(ctx, VCL_RET_FAIL);
 		return (NULL);
 	}
@@ -116,7 +117,17 @@ free_client(const struct vrt_ctx *ctx,
 VCL_VOID
 vmod_db(VRT_CTX, struct vmod_priv *priv, VCL_STRING server_url)
 {
-		struct vmod_mongodb_vcl_settings *settings;
+	struct vmod_mongodb_vcl_settings *settings;
+
+	if (ctx->method != VCL_MET_INIT) {
+		VRT_fail(ctx,
+		    "db() may only be called from vcl_init");
+		return;
+	}
+
+	if (settings->pool) {
+		"db() may only be called once");
+	}
 
 	CHECK_OBJ_NOTNULL(ctx, VRT_CTX_MAGIC);
 	CAST_OBJ_NOTNULL(settings, priv->priv, VMOD_MDB_SETTINGS_MAGIC);
@@ -144,19 +155,17 @@ vmod_find(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name, VCL_STRIN
 	bson_t *query;
 	char *p, *result;
 
-	VSL(SLT_VCL_Log, 0, "Could not connect");
-
 	CHECK_OBJ_NOTNULL(ctx, VRT_CTX_MAGIC);
 	CAST_OBJ_NOTNULL(settings, priv->priv, VMOD_MDB_SETTINGS_MAGIC);
 	mc = get_client(ctx, settings);
 	if (!mc) {
-		VSL(SLT_VCL_Log, 0, "Could not get DB Conection");
+		MONGO_INFO_LOG(ctx, "Could not get connection to database for find");
 		return (NULL);
 	}
 
 	query = bson_new_from_json((const uint8_t *)query_string, -1, NULL);
 	if (!query) {
-		VSL(SLT_VCL_Log, 0, "Could not connect not query");
+		MONGO_INFO_LOG(ctx, "Could not serialize query to bson for find");
 		free_client(ctx, settings, mc);
 		return (NULL);
 
@@ -164,7 +173,7 @@ vmod_find(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name, VCL_STRIN
 
 	mongoc_collection_t *collection = mongoc_client_get_collection (mc, settings->dbname, collection_name);
 	if (!collection) {
-			VSL(SLT_VCL_Log, 0, "Could not get collection");
+			MONGO_INFO_LOG(ctx, "Could not get collection for find");
 			bson_destroy (query);
 			free_client(ctx, settings, mc);
 			 return (NULL);
@@ -183,13 +192,13 @@ vmod_find(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name, VCL_STRIN
 		return (p);
 	}
 
-	VSL(SLT_VCL_Log, 0, "Could not get result");
+	MONGO_INFO_LOG(ctx, "Could not get result for find");
 	bson_destroy (query);
 	mongoc_cursor_destroy(cursor);
 	mongoc_collection_destroy (collection);
 	free_client(ctx, settings, mc);
 
-	return NULL;
+	return (NULL);
 }
 
 VCL_BOOL
@@ -205,13 +214,13 @@ vmod_find_and_update(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name
 	CAST_OBJ_NOTNULL(settings, priv->priv, VMOD_MDB_SETTINGS_MAGIC);
 	mc = get_client(ctx, settings);
 	if (!mc) {
-		VSL(SLT_VCL_Log, 0, "Could not get DB Conection");
+		MONGO_INFO_LOG(ctx, "Could not get database connection for find_and_update");
 		return 0;
 	}
 
 	query = bson_new_from_json((const uint8_t *)query_string, -1, NULL);
 	if (!query) {
-		VSL(SLT_VCL_Log, 0, "Could not make query");
+		MONGO_INFO_LOG(ctx, "COuld not serialize query for find_and_update");
 		free_client(ctx, settings, mc);
 		return 0;
 
@@ -220,7 +229,7 @@ vmod_find_and_update(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name
 	update = bson_new_from_json((const uint8_t *)update_string, -1, NULL);
 	if (!update) {
 		bson_destroy (query);
-		VSL(SLT_VCL_Log, 0, "Could not make update");
+		MONGO_INFO_LOG(ctx, "Could not serialize update into bson for find_and_update");
 		free_client(ctx, settings, mc);
 		return 0;
 
@@ -228,7 +237,7 @@ vmod_find_and_update(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name
 
 	mongoc_collection_t *collection = mongoc_client_get_collection (mc, settings->dbname, collection_name);
 	if (!collection) {
-			VSL(SLT_VCL_Log, 0, "Could not get collection");
+			MONGO_INFO_LOG(ctx, "Could not get collection for find_and_update");
 			bson_destroy (query);
 			bson_destroy (update);
 			free_client(ctx, settings, mc);
@@ -253,19 +262,17 @@ vmod_aggregate(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name, VCL_
 	bson_t *query;
 	char *p, *result;
 
-	VSL(SLT_VCL_Log, 0, "Could not connect");
-
 	CHECK_OBJ_NOTNULL(ctx, VRT_CTX_MAGIC);
 	CAST_OBJ_NOTNULL(settings, priv->priv, VMOD_MDB_SETTINGS_MAGIC);
 	mc = get_client(ctx, settings);
 	if (!mc) {
-		VSL(SLT_VCL_Log, 0, "Could not get DB Conection");
+		MONGO_INFO_LOG(ctx, "Could not get DB Conection");
 		return (NULL);
 	}
 
 	query = bson_new_from_json((const uint8_t *)query_string, -1, NULL);
 	if (!query) {
-		VSL(SLT_VCL_Log, 0, "Could not connect to query");
+		MONGO_INFO_LOG(ctx, "Invalid aggregation query");
 		free_client(ctx, settings, mc);
 		return (NULL);
 
@@ -273,7 +280,7 @@ vmod_aggregate(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name, VCL_
 
 	mongoc_collection_t *collection = mongoc_client_get_collection (mc, settings->dbname, collection_name);
 	if (!collection) {
-			VSL(SLT_VCL_Log, 0, "Could not get collection");
+			MONGO_INFO_LOG(ctx, "Could not get collection for aggregation");
 			bson_destroy (query);
 			free_client(ctx, settings, mc);
 			 return (NULL);
@@ -293,13 +300,13 @@ vmod_aggregate(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name, VCL_
 		return (p);
 	}
 
-	VSL(SLT_VCL_Log, 0, "Could not get result");
+	MONGO_INFO_LOG(ctx, "Could not get result for aggregation");
 	bson_destroy (query);
 	mongoc_cursor_destroy(cursor);
 	mongoc_collection_destroy (collection);
 	free_client(ctx, settings, mc);
 
-	return NULL;
+	return (NULL);
 }
 
 VCL_STRING
@@ -312,13 +319,13 @@ vmod_db_name(VRT_CTX, struct vmod_priv *priv)
 	CAST_OBJ_NOTNULL(settings, priv->priv, VMOD_MDB_SETTINGS_MAGIC);
 	mc = get_client(ctx, settings);
 	if (!mc) {
-		VSL(SLT_VCL_Log, 0, "Could not get DB Conection");
+		MONGO_INFO_LOG(ctx, "Could not get DB Conection");
 		return (NULL);
 	}
 
 	mongoc_database_t *database = mongoc_client_get_default_database(mc);
 	if (!database) {
-		VSL(SLT_VCL_Log, 0, "Could not get default database");
+		MONGO_INFO_LOG(ctx, "Could not get default database");
 		free_client(ctx, settings, mc);
 		return (NULL);
 	}

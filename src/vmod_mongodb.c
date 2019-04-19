@@ -116,23 +116,22 @@ free_client(const struct vrt_ctx *ctx,
 VCL_VOID
 vmod_db(VRT_CTX, struct vmod_priv *priv, VCL_STRING server_url)
 {
-	struct vmod_mongodb_vcl_settings *settings;
+		struct vmod_mongodb_vcl_settings *settings;
 
 	CHECK_OBJ_NOTNULL(ctx, VRT_CTX_MAGIC);
 	CAST_OBJ_NOTNULL(settings, priv->priv, VMOD_MDB_SETTINGS_MAGIC);
 	AZ(settings->pool);
 
-	// size_t pool_len = strlen(server_url);
-	// char *pool_str = malloc(pool_len + 1);
+	size_t pool_len = strlen(server_url);
+	char *pool_str = malloc(pool_len + 1);
 
-	// strcpy(pool_str, server_url);
-	settings->uri = mongoc_uri_new(server_url);
+	strcpy(pool_str, server_url);
+	settings->uri = mongoc_uri_new(pool_str);
 	settings->pool = mongoc_client_pool_new(settings->uri);
 	mongoc_client_pool_set_error_api(settings->pool, 2);
 	settings->dbname = mongoc_uri_get_database(settings->uri);
-
 	VSL(SLT_VCL_Log, 0, "Could not connect");
-	// free(pool_str);
+	free(pool_str);
 	return;
 }
 
@@ -301,4 +300,32 @@ vmod_aggregate(VRT_CTX, struct vmod_priv *priv, VCL_STRING collection_name, VCL_
 	free_client(ctx, settings, mc);
 
 	return NULL;
+}
+
+VCL_STRING
+vmod_db_name(VRT_CTX, struct vmod_priv *priv)
+{
+	mongoc_client_t *mc;
+	struct vmod_mongodb_vcl_settings *settings;
+
+	CHECK_OBJ_NOTNULL(ctx, VRT_CTX_MAGIC);
+	CAST_OBJ_NOTNULL(settings, priv->priv, VMOD_MDB_SETTINGS_MAGIC);
+	mc = get_client(ctx, settings);
+	if (!mc) {
+		VSL(SLT_VCL_Log, 0, "Could not get DB Conection");
+		return (NULL);
+	}
+
+	mongoc_database_t *database = mongoc_client_get_default_database(mc);
+	if (!database) {
+		VSL(SLT_VCL_Log, 0, "Could not get default database");
+		free_client(ctx, settings, mc);
+		return (NULL);
+	}
+
+	char *p;
+	p = WS_Copy(ctx->ws, mongoc_database_get_name(database), -1);
+	mongoc_database_destroy (database);
+	free_client(ctx, settings, mc);
+	return (p);
 }

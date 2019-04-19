@@ -1,28 +1,32 @@
-varnishtest "Test mongodb vmod"
+varnishtest "Test if the default database name can be fetched"
+
+feature cmd "command -v mongod >/dev/null"
 
 server s1 {
-       rxreq
-       txresp
+	timeout 10
+
+	rxreq
+	expect req.url == "/"
+	txresp -status 200
 } -start
 
 varnish v1 -vcl+backend {
-	import std;
-	import ${vmod_mongodb};
+	import mongodb from "/usr/lib64/varnish-plus/vmods/libvmod_mongodb.so";
 
 	sub vcl_init {
+		mongodb.db("mongodb://127.0.0.1:27017/test");
 	}
 
 	sub vcl_deliver {
-		set resp.http.hello = "Hello, World";
-		set resp.http.info = "vmod_mongodb warmed at ";
+		set resp.http.db_name = mongodb.db_name();
 	}
+
+
 } -start
 
 client c1 {
 	txreq -url "/"
 	rxresp
-	expect resp.http.hello == "Hello, World"
-	expect resp.http.info  ~  "^vmod_mongodb warmed at "
-}
-
-client c1 -run
+	expect resp.status == 200
+	expect resp.http.db_name == "test"
+} -run

@@ -10,9 +10,7 @@ import mongodb;
 DESCRIPTION
 ===========
 
-mongodb Varnish vmod demonstrating how to write an out-of-tree Varnish vmod.
-
-Implements the traditional Hello World as a vmod.
+mongodb Varnish vmod
 
 FUNCTIONS
 =========
@@ -93,29 +91,3 @@ In your VCL you could then use this vmod along the following lines::
                 # This sets resp.http.hello to "Hello, World"
                 set resp.http.hello = mongodb.hello("World");
         }
-
-COMMON PROBLEMS
-===============
-
-* configure: error: Need varnish.m4 -- see README.rst
-
-  Check whether ``PKG_CONFIG_PATH`` and ``ACLOCAL_PATH`` were set correctly
-  before calling ``autogen.sh`` and ``configure``
-
-* Incompatibilities with different Varnish Cache versions
-
-  Make sure you build this vmod against its correspondent Varnish Cache version.
-  For instance, to build against Varnish Cache 4.1, this vmod must be built from
-  branch 4.1.
-
-START YOUR OWN VMOD
-===================
-
-The basic steps to start a new vmod from this mongodb are::
-
-  name=myvmod
-  git clone libvmod-mongodb libvmod-$name
-  cd libvmod-$name
-  ./rename-vmod-script $name
-
-and follow the instructions output by rename-vmod-script

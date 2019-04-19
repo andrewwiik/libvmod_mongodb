@@ -1,0 +1,29 @@
+varnishtest "Test mongodb vmod"
+
+feature cmd "command -v mongod >/dev/null"
+
+server s1 {
+       rxreq
+       txresp
+} -start
+
+varnish v1 -vcl+backend {
+	import std from "/usr/lib64/varnish-plus/vmods/libvmod_std.so";
+	import mongodb from "/usr/lib64/varnish-plus/vmods/libvmod_mongodb.so";
+
+	sub vcl_init {
+		# mongodb.db("mongodb://127.0.0.1:27017/admin")
+	}
+
+	sub vcl_deliver {
+		set resp.http.hello = "Hello, World";
+	}
+} -start
+
+client c1 {
+	txreq -url "/"
+	rxresp
+	expect resp.http.hello == "Hello, World"
+}
+
+client c1 -run

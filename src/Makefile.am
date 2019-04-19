@@ -15,12 +15,13 @@ dist_man_MANS = vmod_mongodb.3
 @BUILD_VMOD_MONGODB@
 
 AM_TESTS_ENVIRONMENT = \
-	PATH="$(VMOD_TEST_PATH)" \
-	LD_LIBRARY_PATH="$(VARNISH_LIBRARY_PATH)"
-	$(abs_srcdir)/tests/install_mongo.sh
+	C_FLAGS="$(MONGOC_CFLAGS) $(C_FLAGS)" \
+	LD_FLAGS="$(MONGOC_LIBS) $(LD_FLAGS)" \
+	PATH="$(VMOD_TEST_PATH):$(PATH)" \
+	LD_LIBRARY_PATH="$(VARNISH_LIBRARY_PATH):$(LD_LIBRARY_PATH)"
 TEST_EXTENSIONS = .vtc
-VTC_LOG_COMPILER = varnishtest -v
-AM_VTC_LOG_FLAGS = -Dvmod_mongodb="$(VMOD_MONGODB)"
+VTC_LOG_COMPILER = varnishtest -vvvv
+AM_VTC_LOG_FLAGS = -p vmod_path="$(abs_srcdir)/.libs" -Dvmod_mongodb="$(VMOD_MONGODB)"
 
 TESTS = @VMOD_TESTS@
 
